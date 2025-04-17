@@ -46,11 +46,11 @@ _io = [
         IOStandard("LVCMOS33")
     ),
     ("eth", 0,
-        Subsignal("rst_n",   Pins("W22")),
+        # Subsignal("rst_n",   Pins("W22")),
         Subsignal("mdio",    Pins("Y22")),
         Subsignal("mdc",     Pins("W21")),
-        Subsignal("rx_ctl",  Pins("AB18")),
-        Subsignal("rx_data", Pins("AA18 Y19 AA19 AB20")),
+        Subsignal("rx_ctl",  Pins("AA1")),
+        Subsignal("rx_data", Pins("AB1 AB2 Y3 AB3")),
         Subsignal("tx_ctl",  Pins("Y4")),
         Subsignal("tx_data", Pins("AA3 AA4 AB5 AA5")),
         IOStandard("LVCMOS33")
@@ -65,14 +65,14 @@ _io = [
         Subsignal("rst_n",   Pins("W22")),
         Subsignal("mdio",    Pins("Y22")),
         Subsignal("mdc",     Pins("W21")),
-        Subsignal("rx_ctl",  Pins("AA1")),
-        Subsignal("rx_data", Pins("AB1 AB2 Y3 AB3")),
+        Subsignal("rx_ctl",  Pins("AB18")),
+        Subsignal("rx_data", Pins("AA18 Y19 AA19 AB20")),
         Subsignal("tx_ctl",  Pins("AA20")),
         Subsignal("tx_data", Pins("AB21 AA21 AB22 Y21")),
         IOStandard("LVCMOS33")
     ),
 
-    # SPIFlash
+    # SPIFlash  # clock needs to be accessed through STARTUPE2
     ("spiflash", 0,
         Subsignal("cs_n", Pins("T19")),
         Subsignal("clk",  Pins("V22")),
@@ -111,7 +111,18 @@ _io = [
         IOStandard("LVCMOS33"),
         Misc("SLEWRATE=FAST")
     ),
-    
+    # HDMI out
+    ("hdmi_out", 0,
+        Subsignal("clk_p",   Pins("Y8")),
+        Subsignal("clk_n",   Pins("Y7")),
+        Subsignal("data0_p", Pins("V9")),
+        Subsignal("data0_n", Pins("V8")),
+        Subsignal("data1_p", Pins("W9")),
+        Subsignal("data1_n", Pins("Y9")),
+        Subsignal("data2_p", Pins("AA8")),
+        Subsignal("data2_n", Pins("AB8")),
+        IOStandard("TMDS_33"),
+    ),
 ]
 
 # Connectors ---------------------------------------------------------------------------------------

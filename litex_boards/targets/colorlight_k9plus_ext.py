@@ -16,7 +16,7 @@ from litex.gen import *
 
 from litex.build.io import DDROutput
 
-from litex_boards.platforms import colorlight_i9plus
+from litex_boards.platforms import colorlight_k9plus_ext
 
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc import SoCRegion
@@ -30,6 +30,8 @@ from litedram.phy import GENSDRPHY
 
 from liteeth.phy.s7rgmii import LiteEthPHYRGMII
 
+from litex.soc.cores.video import VideoS7HDMIPHY
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
@@ -37,6 +39,10 @@ class _CRG(LiteXModule):
         self.rst       = Signal()
         self.cd_sys    = ClockDomain()
         self.cd_idelay = ClockDomain()
+
+        self.cd_hdmi   = ClockDomain()
+        self.cd_hdmi5x = ClockDomain()
+
         if with_dram:
             self.cd_sys_ps = ClockDomain()
         # # #
@@ -51,6 +57,8 @@ class _CRG(LiteXModule):
         pll.register_clkin(clk25, 25e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
         pll.create_clkout(self.cd_idelay,    200e6)
+        pll.create_clkout(self.cd_hdmi,   25e6,  margin=0)
+        pll.create_clkout(self.cd_hdmi5x, 125e6, margin=0)
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
         self.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
 
@@ -75,7 +83,7 @@ class BaseSoC(SoCCore):
         with_spi_flash  = False,
         with_sdcard     = True,
         **kwargs):
-        platform = colorlight_i9plus.Platform(toolchain=toolchain)
+        platform = colorlight_k9plus_ext.Platform(toolchain=toolchain)
 
         # CRG --------------------------------------------------------------------------------------
         self.crg  = _CRG(platform, sys_clk_freq, True)
@@ -114,11 +122,32 @@ class BaseSoC(SoCCore):
         #     if with_etherbone:
         #         self.add_etherbone(phy=self.ethphy)
 
+        if with_ethernet:
+            self.ethphy = LiteEthPHYRGMII(
+                clock_pads = self.platform.request("eth_clocks", 0),
+                pads       = self.platform.request("eth", 0),
+                tx_delay = 0e-9,
+                rx_delay = 2e-9,
+            )
+            self.add_ethernet(phy=self.ethphy)
+
+        # HDMI Options -----------------------------------------------------------------------------
+        # if with_hdmi and (with_video_colorbars or with_video_framebuffer or with_video_terminal):
+        #     self.videophy = VideoS7HDMIPHY(platform.request("hdmi_out"), clock_domain="hdmi")
+        #     if with_video_colorbars:
+        #         self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+        #     if with_video_terminal:
+        #         self.add_video_terminal(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+        #     if with_video_framebuffer:
+        #         self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+        self.videophy = VideoS7HDMIPHY(platform.request("hdmi_out"), clock_domain="hdmi")
+        self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+
         # SPI Flash --------------------------------------------------------------------------------
         if with_spi_flash:
             from litespi.modules import MX25L12833F
             from litespi.opcodes import SpiNorFlashOpCodes as Codes
-            self.add_spi_flash(mode="1x", module=MX25L12833F(Codes.READ_1_1_1))
+            self.add_spi_flash(mode="4x", module=MX25L12833F(Codes.READ_1_1_4),rate="1:2")
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
@@ -135,7 +164,7 @@ class BaseSoC(SoCCore):
 
 def main():
     from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=colorlight_i9plus.Platform, description="LiteX SoC on Arty A7.")
+    parser = LiteXArgumentParser(platform=colorlight_k9plus_ext.Platform, description="LiteX SoC on Arty A7.")
     parser.add_target_argument("--flash",          action="store_true",       help="Flash bitstream.")
     parser.add_target_argument("--sys-clk-freq",   default=100e6, type=float, help="System clock frequency.")
     parser.add_target_argument("--with-dna",       action="store_true",       help="Enable 7-Series DNA.")
