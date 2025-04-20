@@ -145,8 +145,14 @@ class Platform(Xilinx7SeriesPlatform):
              "set_property BITSTREAM.CONFIG.SPI_32BIT_ADDR NO [current_design]"]
         self.toolchain.additional_commands = \
             ["write_cfgmem -force -format bin -interface spix1 -size 16 "
-             "-loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
-
+             "-loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin\n"
+             "open_hw\n"
+             "connect_hw_server\n"
+             "current_hw_target\n"
+             "open_hw_target\n"
+             "current_hw_device\n"
+             "set_property PROGRAM.FILE {build_name}.bit [current_hw_device]\n"
+             "program_hw_devices"]
 
     def create_programmer(self):
         return OpenFPGALoader(cable="ch347_jtag")

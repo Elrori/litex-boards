@@ -141,13 +141,17 @@ class BaseSoC(SoCCore):
         #     if with_video_framebuffer:
         #         self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
         self.videophy = VideoS7HDMIPHY(platform.request("hdmi_out"), clock_domain="hdmi")
-        self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+        # self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+        self.add_video_terminal(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+        # self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
 
         # SPI Flash --------------------------------------------------------------------------------
         if with_spi_flash:
             from litespi.modules import MX25L12833F
             from litespi.opcodes import SpiNorFlashOpCodes as Codes
-            self.add_spi_flash(mode="4x", module=MX25L12833F(Codes.READ_1_1_4),rate="1:2")
+            # from litex.soc.cores.spi_flash import S7SPIFlash
+            # self.flash      = S7SPIFlash(platform.request("spiflash",0), sys_clk_freq, 50e6)
+            self.add_spi_flash(mode="1x", clk_freq=50e6, module=MX25L12833F(Codes.READ_1_1_1))
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
@@ -159,6 +163,7 @@ class BaseSoC(SoCCore):
         # SD Card ----------------------------------------------------------------------------------
         if with_sdcard:
             self.add_sdcard()
+
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -182,7 +187,7 @@ def main():
 
     soc = BaseSoC(
         toolchain      = args.toolchain,
-        sys_clk_freq   = args.sys_clk_freq,
+        sys_clk_freq   = args.sys_clk_freq, 
         with_dna       = args.with_dna,
         with_pmod_uart = args.with_pmod_uart,
         with_ethernet  = args.with_ethernet,
