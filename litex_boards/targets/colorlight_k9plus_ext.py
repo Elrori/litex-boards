@@ -72,16 +72,16 @@ class _CRG(LiteXModule):
 
 class BaseSoC(SoCCore):
     def __init__(self, toolchain="vivado", sys_clk_freq=100e6,
-        with_dna        = False,
-        with_pmod_uart  = False,
-        with_ethernet   = False,
-        with_etherbone  = False,
-        eth_port        = 0,
-        eth_ip          = "192.168.1.50",
-        eth_dynamic_ip  = False,
-        with_led_chaser = True,
-        with_spi_flash  = False,
-        with_sdcard     = True,
+        with_led_chaser         = True,
+        with_ethernet           = False,
+        with_etherbone          = False,
+        local_ip                = "",
+        remote_ip               = "",
+        with_video_colorbars    = False,
+        with_video_framebuffer  = False,
+        with_video_terminal     = False,
+        with_spi_flash          = False,
+        with_sdcard             = False,
         **kwargs):
         platform = colorlight_k9plus_ext.Platform(toolchain=toolchain)
 
@@ -90,6 +90,13 @@ class BaseSoC(SoCCore):
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Arty A7", **kwargs)
+
+        # Leds -------------------------------------------------------------------------------------
+        if with_led_chaser:
+            self.leds = LedChaser(
+                pads         = platform.request_all("user_led"),
+                sys_clk_freq = sys_clk_freq,
+            )
 
         # SDRAM ------------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
@@ -103,47 +110,39 @@ class BaseSoC(SoCCore):
 
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
-        # if with_ethernet or with_etherbone:
-        #     self.ethphy = LiteEthPHYRGMII(
-        #         clock_pads = self.platform.request("eth_clocks", eth_port),
-        #         pads       = self.platform.request("eth", eth_port),
-        #         tx_delay = 0)
-        #     if with_ethernet:
-        #         self.add_ethernet(phy=self.ethphy, dynamic_ip=eth_dynamic_ip)
-        #     if with_etherbone:
-        #         self.add_etherbone(phy=self.ethphy, ip_address=eth_ip)
-        # if with_ethernet or with_etherbone:
-        #     self.ethphy = LiteEthPHYRGMII(
-        #         clock_pads = self.platform.request("eth_clocks", eth_port),
-        #         pads       = self.platform.request("eth", eth_port),
-        #         tx_delay = 0)
-        #     if with_ethernet:
-        #         self.add_ethernet(phy=self.ethphy)
-        #     if with_etherbone:
-        #         self.add_etherbone(phy=self.ethphy)
-
-        if with_ethernet:
+        if with_ethernet or with_etherbone:
             self.ethphy = LiteEthPHYRGMII(
                 clock_pads = self.platform.request("eth_clocks", 0),
                 pads       = self.platform.request("eth", 0),
                 tx_delay = 0e-9,
                 rx_delay = 2e-9,
             )
-            self.add_ethernet(phy=self.ethphy)
+            if with_ethernet:
+                self.add_ethernet(phy=self.ethphy)
+            if with_etherbone:
+                self.add_etherbone(phy=self.ethphy)
+        if local_ip:
+            local_ip = local_ip.split(".")
+            self.add_constant("LOCALIP1", int(local_ip[0]))
+            self.add_constant("LOCALIP2", int(local_ip[1]))
+            self.add_constant("LOCALIP3", int(local_ip[2]))
+            self.add_constant("LOCALIP4", int(local_ip[3]))
+        if remote_ip:
+            remote_ip = remote_ip.split(".")
+            self.add_constant("REMOTEIP1", int(remote_ip[0]))
+            self.add_constant("REMOTEIP2", int(remote_ip[1]))
+            self.add_constant("REMOTEIP3", int(remote_ip[2]))
+            self.add_constant("REMOTEIP4", int(remote_ip[3]))
 
         # HDMI Options -----------------------------------------------------------------------------
-        # if with_hdmi and (with_video_colorbars or with_video_framebuffer or with_video_terminal):
-        #     self.videophy = VideoS7HDMIPHY(platform.request("hdmi_out"), clock_domain="hdmi")
-        #     if with_video_colorbars:
-        #         self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
-        #     if with_video_terminal:
-        #         self.add_video_terminal(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
-        #     if with_video_framebuffer:
-        #         self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
-        self.videophy = VideoS7HDMIPHY(platform.request("hdmi_out"), clock_domain="hdmi")
-        # self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
-        self.add_video_terminal(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
-        # self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+        if with_video_colorbars or with_video_framebuffer or with_video_terminal:
+            self.videophy = VideoS7HDMIPHY(platform.request("hdmi_out"), clock_domain="hdmi")
+            if with_video_colorbars:
+                self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+            if with_video_terminal:
+                self.add_video_terminal(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+            if with_video_framebuffer:
+                self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", clock_domain="hdmi")
 
         # SPI Flash --------------------------------------------------------------------------------
         if with_spi_flash:
@@ -152,13 +151,6 @@ class BaseSoC(SoCCore):
             # from litex.soc.cores.spi_flash import S7SPIFlash
             # self.flash      = S7SPIFlash(platform.request("spiflash",0), sys_clk_freq, 50e6)
             self.add_spi_flash(mode="1x", clk_freq=50e6, module=MX25L12833F(Codes.READ_1_1_1))
-
-        # Leds -------------------------------------------------------------------------------------
-        if with_led_chaser:
-            self.leds = LedChaser(
-                pads         = platform.request_all("user_led"),
-                sys_clk_freq = sys_clk_freq,
-            )
 
         # SD Card ----------------------------------------------------------------------------------
         if with_sdcard:
@@ -172,30 +164,31 @@ def main():
     parser = LiteXArgumentParser(platform=colorlight_k9plus_ext.Platform, description="LiteX SoC on Arty A7.")
     parser.add_target_argument("--flash",          action="store_true",       help="Flash bitstream.")
     parser.add_target_argument("--sys-clk-freq",   default=100e6, type=float, help="System clock frequency.")
-    parser.add_target_argument("--with-dna",       action="store_true",       help="Enable 7-Series DNA.")
-    parser.add_target_argument("--with-pmod-uart", action="store_true",       help="Enable uart on P2 (top) PMOD")
     ethopts = parser.target_group.add_mutually_exclusive_group()
     ethopts.add_argument("--with-ethernet",        action="store_true",       help="Enable Ethernet support.")
-    ethopts.add_argument("--with-etherbone",       action="store_true",       help="Enable Etherbone support.")
-    parser.add_target_argument("--eth-port",       default=0, type=int,       help="Ethernet port to use (0/1)")
-    parser.add_target_argument("--eth-ip",         default="192.168.1.50",    help="Ethernet/Etherbone IP address.")
-    parser.add_target_argument("--eth-dynamic-ip", action="store_true",       help="Enable dynamic Ethernet IP addresses setting.")
+    ethopts.add_argument("--with-etherbone",  action="store_true",      help="Enable Etherbone support.")
+    parser.add_target_argument("--remote-ip", default="192.168.1.100",  help="Remote IP address of TFTP server.")
+    parser.add_target_argument("--local-ip",  default="192.168.1.50",   help="Local IP address.")
+    viopts = parser.target_group.add_mutually_exclusive_group()
+    viopts.add_argument("--with-video-colorbars",    action="store_true", help="Enable Video Colorbars (HDMI).")
+    viopts.add_argument("--with-video-terminal",    action="store_true", help="Enable Video Terminal (HDMI).")
+    viopts.add_argument("--with-video-framebuffer", action="store_true", help="Enable Video Framebuffer (HDMI).")
     parser.add_target_argument("--with-spi-flash", action="store_true",       help="Enable SPI Flash (MMAPed).")
+    parser.add_target_argument("--with-sdcard",      action="store_true", help="Enable SDCard support.")
     args = parser.parse_args()
-
-    assert not (args.with_etherbone and args.eth_dynamic_ip)
 
     soc = BaseSoC(
         toolchain      = args.toolchain,
         sys_clk_freq   = args.sys_clk_freq, 
-        with_dna       = args.with_dna,
-        with_pmod_uart = args.with_pmod_uart,
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
-        eth_port       = args.eth_port,
-        eth_ip         = args.eth_ip,
-        eth_dynamic_ip = args.eth_dynamic_ip,
+        local_ip       = args.local_ip,
+        remote_ip      = args.remote_ip,
+        with_video_colorbars   = args.with_video_colorbars,
+        with_video_framebuffer = args.with_video_framebuffer,
+        with_video_terminal    = args.with_video_terminal,
         with_spi_flash = args.with_spi_flash,
+        with_sdcard    = args.with_sdcard,
         **parser.soc_argdict
     )
 
